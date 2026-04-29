@@ -1,10 +1,12 @@
-name: Actualizar Dashboard de Reseñas
+name: Actualizar Dashboard de Resenas
 
 on:
   schedule:
-    # Todos los lunes a las 6:00 UTC (3:00 AM Argentina)
     - cron: '0 6 * * 1'
   workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   update:
@@ -24,7 +26,7 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
-      - name: Scrapear reseñas de Google Play
+      - name: Scrapear resenas de Google Play
         run: node scraper_bancos.js --android
         timeout-minutes: 30
 
