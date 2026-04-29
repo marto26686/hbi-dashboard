@@ -1,51 +1,28 @@
 /**
- * Scraper de reseñas — Google Play Store + Apple App Store
+ * Scraper de resenas -- Google Play Store + Apple App Store
  * Bancos Provinciales Argentinos
  *
- * Instalación:
- *   npm install google-play-scraper@8 app-store-scraper
- *
  * Uso:
- *   node scraper_bancos.js              → Android + iOS
- *   node scraper_bancos.js --android    → solo Google Play
- *   node scraper_bancos.js --ios        → solo App Store
+ *   node scraper_bancos.js           -> Android + iOS
+ *   node scraper_bancos.js --android -> solo Google Play
+ *   node scraper_bancos.js --ios     -> solo App Store
  */
 
-// google-play-scraper@8 usa CommonJS — asegurate de instalar con: npm install google-play-scraper@8
 const gplay = require('google-play-scraper');
-const store = require('app-store-scraper');
 
-// Verificar que la librería está correctamente instalada
 if (typeof gplay.reviews !== 'function') {
-  console.error('\n❌ Error de versión: google-play-scraper no está bien instalado.');
-  console.error('   Corré: npm install google-play-scraper@8\n');
+  console.error('Error: google-play-scraper no esta bien instalado. Corre: npm install google-play-scraper@8');
   process.exit(1);
 }
-const fs    = require('fs');
-const path  = require('path');
 
-// ── Configuración ─────────────────────────────────────────────────────────
+const fs   = require('fs');
+const path = require('path');
+
 const BANCOS = [
-  {
-    nombre:       'Banco Santa Fe',
-    androidAppId: 'com.bancosantafe.mobile',
-    iosTerm:      'Banco Santa Fe',       // término de búsqueda en App Store
-  },
-  {
-    nombre:       'Banco Entre Ríos',
-    androidAppId: 'com.bancoentrerios.mobile',
-    iosTerm:      'Banco Entre Rios',
-  },
-  {
-    nombre:       'Banco Santa Cruz',
-    androidAppId: 'com.bancosantacruz.mobile',
-    iosTerm:      'Banco Santa Cruz',
-  },
-  {
-    nombre:       'Banco San Juan',
-    androidAppId: 'com.bancosanjuan.mobile',
-    iosTerm:      'Banco San Juan',
-  },
+  { nombre: 'Banco Santa Fe',   androidAppId: 'com.bancosantafe.mobile',   iosTerm: 'Banco Santa Fe'   },
+  { nombre: 'Banco Entre Rios', androidAppId: 'com.bancoentrerios.mobile',  iosTerm: 'Banco Entre Rios' },
+  { nombre: 'Banco Santa Cruz', androidAppId: 'com.bancosantacruz.mobile',  iosTerm: 'Banco Santa Cruz' },
+  { nombre: 'Banco San Juan',   androidAppId: 'com.bancosanjuan.mobile',    iosTerm: 'Banco San Juan'   },
 ];
 
 const CONFIG = {
@@ -56,21 +33,17 @@ const CONFIG = {
   outputDir:  './reviews',
 };
 
-// Constantes de sort — v8 las expone en gplay.sort, fallback a numérico
-//   1 = HELPFULNESS | 2 = NEWEST | 3 = RATING
-const SORT_NEWEST = gplay.sort?.NEWEST ?? 2;
+const SORT_NEWEST = gplay.sort && gplay.sort.NEWEST ? gplay.sort.NEWEST : 2;
 
-// ── Args ──────────────────────────────────────────────────────────────────
-const args        = process.argv.slice(2);
+const args         = process.argv.slice(2);
 const hacerAndroid = !args.includes('--ios');
 const hacerIos     = !args.includes('--android');
 
-// ── Helpers ───────────────────────────────────────────────────────────────
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function log(msg) {
   const ts = new Date().toLocaleTimeString('es-AR');
-  console.log(`[${ts}] ${msg}`);
+  console.log('[' + ts + '] ' + msg);
 }
 
 function guardar(rutaArchivo, datos) {
@@ -82,7 +55,7 @@ function nombreArchivo(banco) {
   return banco.nombre
     .toLowerCase()
     .replace(/\s+/g, '_')
-    .replace(/[íéóúü]/g, c => ({ í:'i', é:'e', ó:'o', ú:'u', ü:'u' })[c] || c);
+    .replace(/[ieoua]/g, c => c);
 }
 
 function calcResumen(reviews) {
@@ -91,42 +64,24 @@ function calcResumen(reviews) {
   return { total: reviews.length, promedio: prom.toFixed(2) };
 }
 
-// ── Formateadores ─────────────────────────────────────────────────────────
 function fmtAndroid(r) {
   return {
     plataforma:      'android',
     id:              r.id,
-    autor:           r.userName   ?? 'Anónimo',
-    calificacion:    r.score      ?? 0,
-    fecha:           r.date instanceof Date ? r.date.toISOString() : (r.date ?? null),
-    titulo:          r.title      ?? null,
-    texto:           r.text       ?? '',
-    util:            r.thumbsUp   ?? 0,
-    version:         r.version    ?? null,
-    respuesta_banco: r.replyText  ?? null,
-    fecha_respuesta: r.repliedAt instanceof Date ? r.repliedAt.toISOString() : (r.repliedAt ?? null),
+    autor:           r.userName   || 'Anonimo',
+    calificacion:    r.score      || 0,
+    fecha:           r.date instanceof Date ? r.date.toISOString() : (r.date || null),
+    titulo:          r.title      || null,
+    texto:           r.text       || '',
+    util:            r.thumbsUp   || 0,
+    version:         r.version    || null,
+    respuesta_banco: r.replyText  || null,
+    fecha_respuesta: r.repliedAt instanceof Date ? r.repliedAt.toISOString() : (r.repliedAt || null),
   };
 }
 
-function fmtIos(r) {
-  return {
-    plataforma:      'ios',
-    id:              r.id,
-    autor:           r.userName   ?? 'Anónimo',
-    calificacion:    r.score      ?? 0,
-    fecha:           r.updated    ?? null,
-    titulo:          r.title      ?? null,
-    texto:           r.text       ?? '',
-    util:            r.thumbsUp   ?? 0,
-    version:         r.version    ?? null,
-    respuesta_banco: null,
-    fecha_respuesta: null,
-  };
-}
-
-// ── Scraping Android ──────────────────────────────────────────────────────
 async function scrapearAndroid(banco) {
-  log(`🤖 [Android] ${banco.nombre} — ${banco.androidAppId}`);
+  log('[Android] ' + banco.nombre + ' -- ' + banco.androidAppId);
 
   const reviews = [];
   let token     = undefined;
@@ -143,118 +98,63 @@ async function scrapearAndroid(banco) {
         nextPaginationToken: token,
       });
 
-      // La API puede devolver { data, nextPaginationToken } o el array directo
-      const batch = Array.isArray(res) ? res : (res.data ?? []);
-      token       = Array.isArray(res) ? null : (res.nextPaginationToken ?? null);
+      const batch = Array.isArray(res) ? res : (res.data || []);
+      token       = Array.isArray(res) ? null : (res.nextPaginationToken || null);
 
-      if (!batch.length) { log('  ✓ Sin más páginas'); break; }
-
+      if (!batch.length) { log('Sin mas paginas'); break; }
       batch.forEach(r => reviews.push(fmtAndroid(r)));
-      log(`  📄 ${reviews.length} reseñas acumuladas`);
+      log(reviews.length + ' resenas acumuladas');
       if (!token) break;
       await sleep(400);
-
     } catch (err) {
-      log(`  ⚠️  Error Android: ${err.message}`);
+      log('Error Android: ' + err.message);
       break;
     }
   }
 
-  log(`  ✅ Android — ${banco.nombre}: ${reviews.length} reseñas\n`);
+  log('Android -- ' + banco.nombre + ': ' + reviews.length + ' resenas');
   return reviews;
 }
 
-// ── Buscar App ID en App Store ────────────────────────────────────────────
-async function buscarAppIdIos(banco) {
-  log(`  🔍 Buscando en App Store AR: "${banco.iosTerm}"...`);
-  try {
-    const resultados = await store.search({
-      term:    banco.iosTerm,
-      country: CONFIG.country,
-      lang:    CONFIG.lang,
-      num:     5,
-    });
-
-    if (!resultados.length) {
-      log(`  ⚠️  Sin resultados para "${banco.iosTerm}"`);
-      return null;
-    }
-
-    // Mostrar las opciones encontradas
-    log(`  📋 Resultados encontrados:`);
-    resultados.slice(0, 3).forEach((app, i) => {
-      log(`     ${i + 1}. [ID: ${app.id}] ${app.title} — ${app.developer}`);
-    });
-
-    // Intentar elegir el más relevante (que contenga el nombre del banco)
-    const palabrasClave = banco.nombre.toLowerCase().split(' ').filter(p => p.length > 3);
-    const mejor = resultados.find(app =>
-      palabrasClave.some(p => app.title.toLowerCase().includes(p))
-    ) ?? resultados[0];
-
-    log(`  ✓ Seleccionado: [ID: ${mejor.id}] "${mejor.title}"`);
-    return mejor.id;
-
-  } catch (err) {
-    log(`  ⚠️  Error buscando en App Store: ${err.message}`);
-    return null;
-  }
-}
-
-// ── Scraping iOS ──────────────────────────────────────────────────────────
 async function scrapearIos(banco) {
-  log(`🍎 [iOS] ${banco.nombre}`);
+  // Carga lazy para no fallar si no esta instalado
+  let store;
+  try { store = require('app-store-scraper'); }
+  catch (e) { log('app-store-scraper no instalado. Saltando iOS para ' + banco.nombre); return []; }
 
-  // 1. Encontrar el App ID real
-  const appId = await buscarAppIdIos(banco);
-  if (!appId) {
-    log(`  ❌ No se pudo encontrar el App ID. Saltando ${banco.nombre}\n`);
-    return [];
-  }
+  log('[iOS] ' + banco.nombre);
 
-  // 2. Verificar info de la app
+  let appId = null;
   try {
-    const info = await store.app({ id: appId, country: CONFIG.country });
-    log(`  📱 "${info.title}" · ⭐ ${info.score?.toFixed(2) ?? 'N/A'} · ${info.reviews ?? '?'} reseñas totales`);
-  } catch (_) { /* continuar igual */ }
-
-  // 3. Scrapear reseñas (App Store limita a ~500 reseñas, 10 páginas de 50)
-  const reviews  = [];
-  const maxPags  = Math.min(10, Math.ceil(CONFIG.maxReviews / 50));
-
-  for (let pag = 1; pag <= maxPags; pag++) {
-    try {
-      const batch = await store.reviews({
-        id:      appId,
-        country: CONFIG.country,
-        sort:    store.sort.RECENT,
-        page:    pag,
-      });
-
-      if (!batch?.length) { log(`  ✓ Sin más páginas (pág ${pag})`); break; }
-
-      batch.forEach(r => reviews.push(fmtIos(r)));
-      log(`  📄 Página ${pag} → ${reviews.length} reseñas acumuladas`);
-      if (reviews.length >= CONFIG.maxReviews) break;
-      await sleep(400);
-
-    } catch (err) {
-      log(`  ⚠️  Error en página ${pag}: ${err.message}`);
-      break;
+    const resultados = await store.search({ term: banco.iosTerm, country: CONFIG.country, num: 5 });
+    if (resultados.length) {
+      appId = resultados[0].id;
+      log('App ID: ' + appId);
     }
-  }
+  } catch (err) { log('Error buscando en App Store: ' + err.message); }
 
-  log(`  ✅ iOS — ${banco.nombre}: ${reviews.length} reseñas\n`);
+  if (!appId) { log('No se encontro App ID. Saltando'); return []; }
+
+  const reviews = [];
+  for (let pag = 1; pag <= 10; pag++) {
+    try {
+      const batch = await store.reviews({ id: appId, country: CONFIG.country, sort: store.sort.RECENT, page: pag });
+      if (!batch || !batch.length) break;
+      batch.forEach(r => reviews.push({
+        plataforma: 'ios', id: r.id, autor: r.userName || 'Anonimo',
+        calificacion: r.score || 0, fecha: r.updated || null,
+        titulo: r.title || null, texto: r.text || '', util: 0,
+        version: r.version || null, respuesta_banco: null, fecha_respuesta: null,
+      }));
+      log('Pagina ' + pag + ' -> ' + reviews.length + ' resenas');
+      await sleep(400);
+    } catch (err) { log('Error pagina ' + pag + ': ' + err.message); break; }
+  }
   return reviews;
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────
 async function main() {
-  const plats = [hacerAndroid && 'Android', hacerIos && 'iOS'].filter(Boolean).join(' + ');
-  console.log('\n═══════════════════════════════════════════════════');
-  console.log(`  Scraper Reseñas — Bancos AR · ${plats}`);
-  console.log('═══════════════════════════════════════════════════\n');
-
+  console.log('=== Scraper Resenas Bancos AR ===');
   const combinado = {};
   const resumen   = [];
 
@@ -264,52 +164,32 @@ async function main() {
     if (hacerAndroid) {
       const revs = await scrapearAndroid(banco);
       combinado[banco.nombre].android = revs;
-      guardar(
-        path.join(CONFIG.outputDir, 'android', `reviews_${nombreArchivo(banco)}.json`),
+      const nombre = banco.nombre.toLowerCase().replace(/\s+/g, '_');
+      guardar(path.join(CONFIG.outputDir, 'android', 'reviews_' + nombre + '.json'),
         { banco: banco.nombre, plataforma: 'android', appId: banco.androidAppId,
-          extraido: new Date().toISOString(), ...calcResumen(revs), reviews: revs }
-      );
+          extraido: new Date().toISOString(), ...calcResumen(revs), reviews: revs });
     }
 
     if (hacerIos) {
       await sleep(CONFIG.pauseMs);
       const revs = await scrapearIos(banco);
       combinado[banco.nombre].ios = revs;
-      guardar(
-        path.join(CONFIG.outputDir, 'ios', `reviews_${nombreArchivo(banco)}.json`),
+      const nombre = banco.nombre.toLowerCase().replace(/\s+/g, '_');
+      guardar(path.join(CONFIG.outputDir, 'ios', 'reviews_' + nombre + '.json'),
         { banco: banco.nombre, plataforma: 'ios',
-          extraido: new Date().toISOString(), ...calcResumen(revs), reviews: revs }
-      );
+          extraido: new Date().toISOString(), ...calcResumen(revs), reviews: revs });
     }
 
     const tot = [...combinado[banco.nombre].android, ...combinado[banco.nombre].ios];
-    resumen.push({
-      banco:          banco.nombre,
-      android:        combinado[banco.nombre].android.length,
-      ios:            combinado[banco.nombre].ios.length,
-      total:          tot.length,
-      'promedio ⭐': calcResumen(tot).promedio,
-    });
+    resumen.push({ banco: banco.nombre, android: combinado[banco.nombre].android.length,
+                   ios: combinado[banco.nombre].ios.length, total: tot.length });
 
-    if (banco !== BANCOS[BANCOS.length - 1]) {
-      log(`⏸  Pausando ${CONFIG.pauseMs}ms...\n`);
-      await sleep(CONFIG.pauseMs);
-    }
+    if (banco !== BANCOS[BANCOS.length - 1]) await sleep(CONFIG.pauseMs);
   }
 
-  // Archivo combinado final
-  const rutaCombinado = path.join(CONFIG.outputDir, 'reviews_todos_los_bancos.json');
-  guardar(rutaCombinado, combinado);
-
-  console.log('\n═══════════════════════════════════════════════════');
-  console.log('  Resumen final');
-  console.log('═══════════════════════════════════════════════════');
+  guardar(path.join(CONFIG.outputDir, 'reviews_todos_los_bancos.json'), combinado);
   console.table(resumen);
-  console.log(`\n📦 Combinado: ${rutaCombinado}`);
-  console.log('✅ Listo. Subí reviews_todos_los_bancos.json al dashboard.\n');
+  console.log('Listo.');
 }
 
-main().catch(err => {
-  console.error('❌ Error fatal:', err);
-  process.exit(1);
-});
+main().catch(err => { console.error('Error fatal:', err); process.exit(1); });
