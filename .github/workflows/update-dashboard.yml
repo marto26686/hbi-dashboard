@@ -5,7 +5,6 @@ on:
     # Todos los lunes a las 6:00 UTC (3:00 AM Argentina)
     - cron: '0 6 * * 1'
   workflow_dispatch:
-    # Permite ejecutar manualmente desde GitHub
 
 jobs:
   update:
@@ -17,14 +16,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '24'
 
       - name: Instalar dependencias
-        run: npm ci
+        run: npm install
 
       - name: Scrapear reseñas de Google Play
         run: node scraper_bancos.js --android
