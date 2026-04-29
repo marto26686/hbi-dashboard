@@ -146,6 +146,30 @@
     .score-ring svg{transform:rotate(-90deg)}
     .score-ring .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:18px;font-weight:700;line-height:1}
     .score-ring .val span{font-size:10px;font-weight:400;color:var(--body)}
+
+    /* ── MOBILE ANALYSIS ─────────────────────────────────────────── */
+    .issue-matrix{width:100%;border-collapse:collapse;font-size:12px}
+    .issue-matrix th{padding:8px 6px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--body);border-bottom:2px solid var(--border);background:var(--card-bg);white-space:nowrap}
+    .issue-matrix th.bank-col{text-align:left;min-width:130px}
+    .issue-matrix td{padding:6px 4px;border:1px solid var(--border-t);text-align:center;vertical-align:middle;cursor:pointer;transition:filter .15s;min-width:90px}
+    .issue-matrix td.bank-name{text-align:left;font-weight:600;font-size:12px;padding-left:10px;white-space:nowrap;cursor:default;background:var(--card-bg)}
+    .issue-matrix td:not(.bank-name):hover{filter:brightness(.88)}
+    .issue-matrix td.selected-cell{outline:2px solid #1a56db;outline-offset:-2px}
+    .issue-cell{display:flex;flex-direction:column;align-items:center;gap:1px;padding:2px 0}
+    .issue-cell-pct{font-size:13px;font-weight:700;line-height:1}
+    .issue-cell-sub{font-size:9px;opacity:.75}
+    .issue-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;font-size:11px;align-items:center;color:var(--body)}
+    .legend-box{width:12px;height:12px;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:4px}
+    .issue-tag{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:var(--r-xl);font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid transparent;transition:all .15s;margin:3px;background:var(--light-gray);color:var(--body)}
+    .issue-tag:hover{background:var(--border);color:var(--titles)}
+    .issue-tag.sel{border-color:currentColor;background:var(--card-bg)}
+    .mobile-rev{background:var(--card-bg);border:1px solid var(--border);border-left:3px solid var(--kc,#6366f1);border-radius:var(--r-l);padding:var(--sp-m);margin-bottom:var(--sp-xs);box-shadow:var(--sh-l)}
+    .mobile-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:var(--sp-m)}
+    .mobile-kpi{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--r-l);padding:12px;box-shadow:var(--sh-l);position:relative;overflow:hidden}
+    .mobile-kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--mkc,#6366f1)}
+    .mobile-kpi-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--body);margin-bottom:4px}
+    .mobile-kpi-val{font-size:20px;font-weight:700;color:var(--titles);line-height:1}
+    .mobile-kpi-sub{font-size:10px;color:var(--body);margin-top:3px}
   </style>
 </head>
 <body>
@@ -164,6 +188,7 @@
     <button class="nav-btn" onclick="goView('comparison',this)"><span class="ic">⚖️</span> Comparativa</button>
     <button class="nav-btn" onclick="goView('topics',this)"><span class="ic">🏷️</span> Temas</button>
     <button class="nav-btn" onclick="goView('reviews',this)"><span class="ic">💬</span> Reseñas</button>
+    <button class="nav-btn" onclick="goView('mobile',this)"><span class="ic">🔍</span> Análisis Mobile</button>
     <div class="nav-lbl" style="margin-top:var(--sp-m)">Bancos</div>
     <div id="bank-pills"></div>
   </div>
@@ -278,6 +303,33 @@
         </div>
         <div id="rev-list"></div>
         <div class="pag" id="rev-pag"></div>
+      </div>
+    </div>
+
+    <!-- MOBILE ANALYSIS -->
+    <div class="view" id="view-mobile">
+      <!-- Resumen por categoría -->
+      <div class="card" style="margin-bottom:var(--sp-m)">
+        <div class="card-title">📊 Resumen de categorías</div>
+        <div class="mobile-summary" id="mobile-summary"></div>
+      </div>
+      <!-- Heatmap -->
+      <div class="card" style="margin-bottom:var(--sp-m)">
+        <div class="card-title">🔥 Mapa de problemas — Banco × Categoría</div>
+        <div class="issue-legend">
+          <span><span class="legend-box" style="background:#fee2e2"></span>Crítico (&gt;60% negativas)</span>
+          <span><span class="legend-box" style="background:#fed7aa"></span>Alto (40–60%)</span>
+          <span><span class="legend-box" style="background:#fef9c3"></span>Medio (20–40%)</span>
+          <span><span class="legend-box" style="background:#dcfce7"></span>Bajo (&lt;20%)</span>
+        </div>
+        <p style="font-size:11px;color:var(--body);margin-bottom:12px">Cada celda: % reseñas que mencionan el problema · % de ellas con ≤2⭐. Hacé click para ver los comentarios.</p>
+        <div style="overflow-x:auto"><table class="issue-matrix" id="mobile-matrix"></table></div>
+      </div>
+      <!-- Reseñas por categoría -->
+      <div class="card">
+        <div class="card-title">💬 Reseñas negativas por categoría</div>
+        <div id="mobile-tags" style="margin-bottom:12px"></div>
+        <div id="mobile-revs" style="max-height:520px;overflow-y:auto;padding-right:4px"></div>
       </div>
     </div>
 
@@ -672,6 +724,159 @@ function refresh(){
   else if(view==='comparison'){renderComparison();}
   else if(view==='topics'){renderTopics();}
   else if(view==='reviews'){doRevs();}
+  else if(view==='mobile'){renderMobile();}
+}
+
+/* ── MOBILE ANALYSIS ──────────────────────────────────────────── */
+const MOBILE_CAT_COLORS = {
+  'Appdome / Seguridad':       '#7c3aed',
+  'Login / Acceso':            '#dc2626',
+  'Biometría / Huella':        '#9333ea',
+  'Performance / Lentitud':    '#d97706',
+  'Crashes / Estabilidad':     '#b45309',
+  'UX / Experiencia':          '#0891b2',
+  'Transferencias / Pagos':    '#059669',
+  'Notificaciones / Push':     '#4f46e5',
+  'Actualizacion / Compatibilidad': '#6b7280',
+};
+
+let mobileSelCat  = null;
+let mobileSelBank = null;
+
+function getMobileCats() {
+  const sample = DATA[BANKS[0]];
+  return sample && sample.mobile_issues ? Object.keys(sample.mobile_issues) : [];
+}
+
+function cellColor(neg_pct) {
+  if (neg_pct > 60) return { bg:'#fee2e2', fg:'#991b1b' };
+  if (neg_pct > 40) return { bg:'#fed7aa', fg:'#92400e' };
+  if (neg_pct > 20) return { bg:'#fef9c3', fg:'#713f12' };
+  return                    { bg:'#dcfce7', fg:'#14532d' };
+}
+
+function renderMobile() {
+  const cats = getMobileCats();
+  if (!cats.length) {
+    document.getElementById('mobile-matrix').innerHTML =
+      '<tr><td colspan="20" style="padding:20px;color:var(--body)">Sin datos de análisis mobile. Ejecutá el workflow para actualizar.</td></tr>';
+    return;
+  }
+  if (!mobileSelCat) mobileSelCat = cats[0];
+
+  const bs = banks();
+
+  // ── Summary KPI cards ──
+  const totals = {};
+  cats.forEach(cat => {
+    totals[cat] = { count: 0, neg_sum: 0, rating_sum: 0, rating_n: 0 };
+    bs.forEach(b => {
+      const d = (DATA[b].mobile_issues || {})[cat] || {};
+      totals[cat].count      += d.count || 0;
+      totals[cat].neg_sum    += (d.neg_pct || 0) * (d.count || 0);
+      totals[cat].rating_sum += (d.avg_rating || 0) * (d.count || 0);
+      totals[cat].rating_n   += d.count || 0;
+    });
+  });
+  const totalRevs = bs.reduce((s, b) => s + DATA[b].total, 0) || 1;
+  document.getElementById('mobile-summary').innerHTML = cats.map(cat => {
+    const t = totals[cat];
+    const pct = Math.round(t.count / totalRevs * 1000) / 10;
+    const neg = t.rating_n ? Math.round(t.neg_sum / t.rating_n) : 0;
+    const col = MOBILE_CAT_COLORS[cat] || '#6366f1';
+    const { bg, fg } = cellColor(neg);
+    return `<div class="mobile-kpi" style="--mkc:${col};cursor:pointer" onclick="mobileSelCat='${cat}';renderMobile()">
+      <div class="mobile-kpi-name">${cat.split('/')[0].trim()}</div>
+      <div class="mobile-kpi-val" style="color:${col}">${pct}%</div>
+      <div class="mobile-kpi-sub">de reseñas · <span style="background:${bg};color:${fg};padding:1px 6px;border-radius:10px;font-weight:600">${neg}% neg</span></div>
+    </div>`;
+  }).join('');
+
+  // ── Heatmap matrix ──
+  let mtx = '<thead><tr><th class="bank-col">Banco</th>';
+  cats.forEach(cat => {
+    mtx += `<th title="${cat}">${cat.split('/')[0].trim()}</th>`;
+  });
+  mtx += '</tr></thead><tbody>';
+
+  bs.forEach(b => {
+    mtx += `<tr><td class="bank-name"><span class="bhdot" style="background:${C[b].p};margin-right:6px"></span>${b.replace('Banco ','')}</td>`;
+    cats.forEach(cat => {
+      const d = (DATA[b].mobile_issues || {})[cat] || { pct:0, neg_pct:0, count:0 };
+      const { bg, fg } = cellColor(d.neg_pct || 0);
+      const sel = (b === mobileSelBank && cat === mobileSelCat) ? ' selected-cell' : '';
+      mtx += `<td class="${sel}" style="background:${bg};color:${fg}" onclick="mobileSelect('${b}','${cat}')">
+        <div class="issue-cell">
+          <span class="issue-cell-pct">${d.pct || 0}%</span>
+          <span class="issue-cell-sub">${d.neg_pct || 0}% neg · ${d.count || 0}</span>
+        </div>
+      </td>`;
+    });
+    mtx += '</tr>';
+  });
+  mtx += '</tbody>';
+  document.getElementById('mobile-matrix').innerHTML = mtx;
+
+  // ── Category tags ──
+  document.getElementById('mobile-tags').innerHTML = cats.map(cat => {
+    const col = MOBILE_CAT_COLORS[cat] || '#6366f1';
+    const sel = cat === mobileSelCat ? ' sel' : '';
+    return `<button class="issue-tag${sel}" style="--kc:${col};${sel ? 'color:'+col : ''}" onclick="mobileSelCat='${cat}';mobileSelBank=null;renderMobile()">${cat}</button>`;
+  }).join('');
+
+  renderMobileRevs();
+}
+
+function mobileSelect(bank, cat) {
+  mobileSelBank = bank;
+  mobileSelCat  = cat;
+  renderMobile();
+  document.getElementById('mobile-revs').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderMobileRevs() {
+  const container = document.getElementById('mobile-revs');
+  const cat = mobileSelCat;
+  if (!cat) { container.innerHTML = ''; return; }
+
+  const bs = mobileSelBank ? [mobileSelBank] : banks();
+  const col = MOBILE_CAT_COLORS[cat] || '#6366f1';
+
+  let revs = [];
+  bs.forEach(b => {
+    const d = (DATA[b].mobile_issues || {})[cat] || {};
+    (d.worst || []).forEach(r => revs.push({ ...r, _bank: b }));
+  });
+  revs.sort((a, b) => a.calificacion - b.calificacion || (b.fecha || '').localeCompare(a.fecha || ''));
+
+  const header = `<div style="font-size:12px;color:var(--body);margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span>Reseñas más negativas — <strong style="color:${col}">${cat}</strong></span>
+    ${mobileSelBank
+      ? `<span style="background:${C[mobileSelBank].bg};color:${C[mobileSelBank].dk};padding:2px 10px;border-radius:12px;font-weight:600;font-size:11px">${mobileSelBank.replace('Banco ','')}</span>
+         <button onclick="mobileSelBank=null;renderMobile()" style="padding:2px 9px;border:1px solid var(--border);border-radius:12px;cursor:pointer;background:none;font-size:11px;color:var(--body)">Ver todos</button>`
+      : ''
+    }
+    <span style="margin-left:auto;font-size:11px">${revs.length} reseñas</span>
+  </div>`;
+
+  if (!revs.length) {
+    container.innerHTML = header + '<p style="color:var(--body);font-size:13px;padding:12px">Sin reseñas en esta categoría para los filtros activos.</p>';
+    return;
+  }
+
+  container.innerHTML = header + revs.slice(0, 12).map(r => `
+    <div class="mobile-rev" style="--kc:${C[r._bank].p}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <span style="font-weight:700;font-size:13px">${r.autor || 'Anónimo'}</span>
+          <span class="rtag" style="background:${C[r._bank].bg};color:${C[r._bank].dk};margin-left:6px">${r._bank.replace('Banco ','')}</span>
+        </div>
+        <div class="rstars">${stars(r.calificacion)}</div>
+      </div>
+      ${r.titulo ? `<div style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--titles)">${r.titulo}</div>` : ''}
+      <div class="rtext" style="color:var(--body)">${r.texto || '<em>Sin texto</em>'}</div>
+      <div style="font-size:10px;color:var(--disabled);margin-top:6px">${fmtDate(r.fecha)}${r.version ? ' · v' + r.version : ''}</div>
+    </div>`).join('');
 }
 
 buildPills();
