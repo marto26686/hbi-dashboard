@@ -1,4 +1,102 @@
 
+
+// Categorías de problemas mobile banking (palabras clave en español AR)
+const MOBILE_CATS = {
+  'Appdome / Seguridad': [
+    'appdome','certificado','control de seguridad','verificacion','verificación',
+    'bloqueado por seguridad','no pasa el control','dispositivo no cumple',
+    'no cumple los requisitos','root','jailbreak','no me deja por seguridad',
+    'proteccion','protección','vpn bloqueada','no pasa la verificacion'
+  ],
+  'Login / Acceso': [
+    'no puedo entrar','no puedo ingresar','no me deja entrar','no me deja ingresar',
+    'contraseña incorrecta','clave incorrecta','usuario bloqueado','me bloqueo',
+    'bloqueo de cuenta','sesion expirada','sesión expirada','expiró','caduco',
+    'caducó','olvide mi clave','olvide la contraseña','cambiar clave',
+    'recuperar clave','acceso denegado','no recuerdo','contraseña olvidada',
+    'no me reconoce','token incorrecto','pin incorrecto'
+  ],
+  'Biometría / Huella': [
+    'huella','huella dactilar','dactilar','reconocimiento facial','face id',
+    'touch id','biometria','biometría','no reconoce mi huella',
+    'lector de huella','huella no funciona','no lee la huella',
+    'huella no reconoce','biometrico','biométrico'
+  ],
+  'Performance / Lentitud': [
+    'lento','lenta','muy lento','muy lenta','tarda mucho','tarda demasiado',
+    'demora mucho','carga lento','lentitud','no carga','tarda siglos',
+    'es lentisima','pesima velocidad','pésima velocidad','timeout',
+    'se queda cargando','no termina de cargar','tarda en cargar',
+    'tarda un monton','tarda una eternidad','tardisimo','tardísimo'
+  ],
+  'Crashes / Estabilidad': [
+    'se cierra','se cae','crash','cierra sola','fuerza el cierre','no abre',
+    'error al abrir','se reinicia','deja de funcionar','se cuelga',
+    'no responde','pantalla negra','no arranca','no inicia','freezea',
+    'se friza','se freza','sale solo','se sale','se cayo','se cayó',
+    'se congela','se traba','no carga la app','error al iniciar'
+  ],
+  'UX / Experiencia': [
+    'dificil de usar','difícil de usar','confusa','confuso','complicada',
+    'complicado','no encuentro como','no entiendo como','mejorar la interfaz',
+    'poco intuitivo','no es intuitivo','mal diseño','fea la app',
+    'horrible la interfaz','mejorar el diseño','muy complicada',
+    'no se entiende','no es amigable','mala experiencia','mala ux',
+    'horrible la navegacion','horrible navegación','mejorar navegacion',
+    'no esta claro','no está claro'
+  ],
+  'Transferencias / Pagos': [
+    'transferencia fallida','no puedo transferir','error al transferir',
+    'pago rechazado','no puedo pagar','pago fallido','debin','debín',
+    'alias incorrecto','alias no encontrado','cbu','cvu',
+    'no se acredita','no llega la transferencia','fondos insuficientes',
+    'debito fallido','débito fallido','rechazo','rechazan'
+  ],
+  'Notificaciones / Push': [
+    'notificacion','notificación','no recibo notificaciones',
+    'no llegan las notificaciones','no me avisa','no me notifica',
+    'alerta no llega','push','no recibo alertas','sin notificaciones',
+    'no notifica','no avisa'
+  ],
+  'Actualizacion / Compatibilidad': [
+    'actualizacion','actualización','nueva version','nueva versión',
+    'despues de actualizar','después de actualizar','desde que actualice',
+    'no es compatible','incompatible','android 14','android 13',
+    'android 12','no soporta','no funciona con la actualizacion',
+    'ultima actualizacion','última actualización'
+  ]
+};
+
+function computeMobileIssues(reviews) {
+  const result = {};
+  const total = reviews.length || 1;
+  Object.entries(MOBILE_CATS).forEach(([cat, kws]) => {
+    const matching = reviews.filter(r => {
+      const text = ((r.titulo || '') + ' ' + (r.texto || '')).toLowerCase();
+      return kws.some(kw => text.includes(kw));
+    });
+    const neg = matching.filter(r => r.calificacion <= 2);
+    const avgRating = matching.length
+      ? Math.round((matching.reduce((s, r) => s + r.calificacion, 0) / matching.length) * 100) / 100
+      : 0;
+    const worst = [...matching]
+      .sort((a, b) => a.calificacion - b.calificacion || new Date(b.fecha || 0) - new Date(a.fecha || 0))
+      .slice(0, 10)
+      .map(r => ({
+        autor: r.autor, calificacion: r.calificacion, fecha: r.fecha,
+        titulo: r.titulo, texto: r.texto, version: r.version
+      }));
+    result[cat] = {
+      count:      matching.length,
+      pct:        Math.round((matching.length / total) * 1000) / 10,
+      avg_rating: avgRating,
+      neg_pct:    matching.length ? Math.round((neg.length / matching.length) * 1000) / 10 : 0,
+      worst,
+    };
+  });
+  return result;
+}
+
 const fs   = require('fs');
 const path = require('path');
 
@@ -101,6 +199,7 @@ function processBank(androidRevs, iosRevs) {
     android: { total: androidRevs.length, avg: calcAvg(androidRevs), dist: calcDist(androidRevs) },
     ios:     { total: iosRevs.length,     avg: calcAvg(iosRevs),     dist: calcDist(iosRevs)     },
     reviews: sorted.slice(0, 300),
+  mobile_issues: computeMobileIssues(all),
   };
 }
 
