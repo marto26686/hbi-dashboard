@@ -1,0 +1,44 @@
+name: Actualizar Dashboard de Reseñas
+
+on:
+  schedule:
+    # Todos los lunes a las 6:00 UTC (3:00 AM Argentina)
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    # Permite ejecutar manualmente desde GitHub
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Scrapear reseñas de Google Play
+        run: node scraper_bancos.js --android
+        timeout-minutes: 30
+
+      - name: Generar dashboard actualizado
+        run: node build_dashboard.js
+
+      - name: Commitear y pushear cambios
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --staged --quiet && echo "Sin cambios" || (
+            git commit -m "Dashboard actualizado: $(date '+%Y-%m-%d')" &&
+            git push
+          )
