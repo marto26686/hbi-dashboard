@@ -1,0 +1,14 @@
+{
+  "name": "hbi-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "scrape": "node scraper_bancos.js --android",
+    "build": "node build_dashboard.js",
+    "update": "npm run scrape && npm run build"
+  },
+  "dependencies": {
+    "google-play-scraper": "8",
+    "app-store-scraper": "^0.20.0"
+  }
+}
